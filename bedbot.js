@@ -22,63 +22,53 @@ client.connect().catch((err) => {
 client.on('connected', () => setTimeout(() => {
 console.log('+++BOT CONNECTED TO TWITCH CHANNELS', client.getChannels());
 },1500));
-let seconds = 0
+
+//below is cooldown counts for commands
 let diceRollCooldown = 0
 let coinFlipCooldown = 0
+let shareCooldown = 0
+//sets var timercount which will change inside the commands to make the timer for the command once called
 var timercount = null
-client.on("message", (channel, tags, message, self,) => {
+client.on("message", (channel, tags, message, self,) => {// if the bot is active and connected it will act on the below code
     // Don't listen to my own messages..
     if (self) return;
     // Do your stuff.
-
-if(message.toLowerCase().startsWith("!seconds")){
-  client.say(channel,`${seconds}`)
-}
-
-function timer(){
-  seconds++;
-  if(seconds>5) {
-    seconds=0;
-    clear()
-  }
-}
-function diceRolltimer(){
+//below is the timer functions for the cooldowns for each command that needs a cooldown
+function diceRollTimer(){
   diceRollCooldown++;
-  if(diceRollCooldown>20) {
+  if(diceRollCooldown>60) {
     diceRollCooldown=0;
     clear()
   }
 }
-function coinFliptimer(){
+function coinFlipTimer(){
   coinFlipCooldown++;
-  if(coinFlipCooldown>5) {
+  if(coinFlipCooldown>60) {
     coinFlipCooldown=0;
     clear()
   }
 }
-function clear(){
-      clearInterval(timercount)}
-  if(message.toLowerCase().startsWith("!hey")){
-    // if(seconds == 0){
-    timercount = setInterval(timer,1000)
-    // timer()}
-    // else if(seconds> 0 && seconds<5){
-    //   client.say(channel,`command incooldown `)
-    // }
-    // else if(seconds> 5){
-    //   clear()
-    //   client.say(channel,`cooldown is over 5s`)
-
-    // }
-
+function shareTimer(){
+  shareCooldown++;
+  if(shareCooldown>60) {
+    shareCooldown=0;
+    clear()
   }
-  
+}
+//below is the clear function to stop the timer once the cooldown count has reached a certain number and calls the clear command and then sets the cooldown to 0
+function clear(){
+      clearInterval(timercount)
+}
+
+
 if(message.toLowerCase() ==='!roll'){// just a random 6 sided dice roll - message is the message received in chat from user
   let dice = 0
   dice = (Math.ceil(Math.random()*6));
 
   client.say(channel, `@${tags.username}, you rolled a ${dice}`)// bot (client) will send message to twitch channel @ mentioning the user with the dice roll number
 }
+
+
 
 if(message.toLowerCase() === '!slothbucks'){ // command to request amount of currency for user of command with the connected channel
   var request = require("request");
@@ -97,6 +87,9 @@ request(options, function (error, response, body) {
   client.say(channel,`@${tags.username} has ${myobj.points} slothbucks`);// replies with the users ammount of currency
 });
 }
+
+
+
 if(message.toLowerCase().startsWith('!diceroll')){// diceroll game command, check if message starts with command !diceroll
   var messageArray = message.split(" ") // split command, message should be command, dice number chosen and amount bet
   diceBet = messageArray[1];// dice number chosen in the array
@@ -106,9 +99,9 @@ if(message.toLowerCase().startsWith('!diceroll')){// diceroll game command, chec
 
 
   if(diceBet <= 6 && diceBet >0 && bet <50 && bet >0 ){//checks if dice number chosen is between 1 and 6 and bet is under 50
-    timercount = setInterval(diceRolltimer,1000)
+    timercount = setInterval(diceRollTimer,1000)
     if(diceRollCooldown>0){
-      client.say(channel,`command in cooldown`);
+      client.say(channel,`diceroll command in cooldown`);
       return
     }
 
@@ -154,10 +147,8 @@ request(options, function (error, response, body) {
 }else{
   client.say(channel,`command structure incorrect, try diceroll then number on dice you want to bet on and amount between 1 and 50`)// if command is incorrect message back to say 
   //incorrect format and what the format is
-}
+}}
 
-
-}
 
 
 if(message.toLowerCase().startsWith('!coinflip')){// command for coinflip game
@@ -171,7 +162,11 @@ if(message.toLowerCase().startsWith('!coinflip')){// command for coinflip game
 
 
   if(bet <50 && bet >0 && coinSideBet.toLowerCase() == "tails" || coinSideBet.toLowerCase() =="heads"){
-
+    timercount = setInterval(coinFlipTimer,1000)
+    if(coinFlipCooldown>0){
+      client.say(channel,`coinflip command in cooldown`);
+      return
+    }
 
 
   if(coinSide.toLocaleLowerCase() == coinSideBet  ){
@@ -217,18 +212,24 @@ request(options, function (error, response, body) {
 }
 }
 
-if (message.toLowerCase().startsWith("!share")){
+
+
+if (message.toLowerCase().startsWith("!share")){// command to gift/share slothbucks with another user
   var messageArray = message.split(" ") // split command, message should be command, person chosen to share with and amount sharing
   receiver = messageArray[1];// person chosen in the array
   var share = messageArray[2]// amount shared in the array
   var shareLoss = (0-share)// to make the negative amount to be taken from person sharing
 
-  
+  timercount = setInterval(shareTimer,1000)
+    if(shareCooldown>0){
+      client.say(channel,`share command in cooldown`);
+      return
+    }
   var request = require("request");
 
   var options = {
     method: 'PUT',
-    url: `https://api.streamelements.com/kappa/v2/points/${SETTINGS.SE_ACCOUNTID}/${receiver}/${share}`,
+    url: `https://api.streamelements.com/kappa/v2/points/${SETTINGS.SE_ACCOUNTID}/${receiver}/${share}`,// gets amount being given added to the person being given the currency
     headers: {Authorization: `Bearer ${SETTINGS.SE_JWTTOKEN}`
     ,accept: `application.js`
   }
@@ -243,7 +244,7 @@ if (message.toLowerCase().startsWith("!share")){
 
   var options1 = {
     method: 'PUT',
-    url: `https://api.streamelements.com/kappa/v2/points/${SETTINGS.SE_ACCOUNTID}/${tags.username}/${shareLoss}`,
+    url: `https://api.streamelements.com/kappa/v2/points/${SETTINGS.SE_ACCOUNTID}/${tags.username}/${shareLoss}`,// gets amount being given taken from the person giving the currency
     headers: {Authorization: `Bearer ${SETTINGS.SE_JWTTOKEN}`
     ,accept: `application.js`
   }
@@ -253,7 +254,7 @@ if (message.toLowerCase().startsWith("!share")){
     var myobj = JSON.parse(body)
     
   
-      client.say(channel,`@${tags.username} has given ${myobj.amount} slothbucks to ${receiver} what a generous person`);
+      client.say(channel,`@${tags.username} has given ${share} slothbucks to ${receiver} what a generous person`);
     
   });
   
